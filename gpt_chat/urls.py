@@ -1,0 +1,10 @@
+# gpt_chat/urls.py
+
+from django.contrib import admin
+from django.urls import path, include
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
+    path('', include('chat.urls')),
+    path('sidebar/', include('sidebar.urls')),
+]

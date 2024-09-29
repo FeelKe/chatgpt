@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Chat{% endblock %}
+
+{% block sidebar %}
+    <h4>Активные чаты</h4>
+    <ul class="list-group">
+        {% for chat in chats %}
+            <li class="list-group-item {% if selected_chat and chat.id == selected_chat.id %}active{% endif %}">
+                <a href="{% url 'chat:index_with_chat' chat.id %}" class="text-decoration-none {% if selected_chat and chat.id == selected_chat.id %}text-light{% else %}text-dark{% endif %}">
+                    {{ chat.title }}
+                </a>
+                <form method="post" action="{% url 'chat:delete_chat' chat.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button class="btn btn-danger btn-sm float-end">Удалить</button>
+                </form>
+            </li>
+        {% endfor %}
+        <li class="list-group-item">
+            <form method="post" action="{% url 'chat:create_chat' %}">
+                {% csrf_token %}
+                <input type="text" class="form-control" name="title" placeholder="Название нового чата" required>
+                <button class="btn btn-success btn-sm text-light" style="background-color: #28a745;">Добавить новый чат</button>
+            </form>
+        </li>
+    </ul>
+{% endblock %}
+
+{% block content %}
+    {% if selected_chat %}
+        <h4>Название чата: {{ selected_chat.title }}</h4>
+
+        <p>Текущая модель: <strong>{{ current_model }}</strong></p>
+        <p>Использовано токенов: <strong>{{ tokens_used }}</strong></p>
+        <p>Стоимость: <strong>{{ cost_in_rub }} руб. ({{ cost_in_usd }} $)</strong></p>
+
+        <form method="post" action="{% url 'chat:rename_chat' selected_chat.id %}">
+            {% csrf_token %}
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" name="title" value="{{ selected_chat.title }}" placeholder="Новое название чата" required>
+                <button class="btn btn-primary" type="submit">Изменить название</button>
+            </div>
+        </form>
+
+        <textarea id="chat-log" class="form-control" readonly style="height: 300px;">
+            {% for message in messages %}
+                {{ message.sender }}: {{ message.content }} ({{ message.created_at }})<br>
+            {% endfor %}
+        </textarea><br>
+
+        <input id="chat-message-input" type="text" class="form-control" placeholder="Введите сообщение..."><br>
+        <p id="cost-preview">Стоимость: 0 руб. (0 $)</p>
+        <button id="chat-message-submit" class="btn btn-primary">Отправить</button>
+    {% else %}
+        <p>Выберите чат из списка слева или создайте новый.</p>
+    {% endif %}
+
+    <script>
+        {% if selected_chat %}
+        const chatSocket = new WebSocket(
+            'ws://' + window.location.host + '/ws/chat/{{ selected_chat.id }}/'
+        );
+
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            document.querySelector('#chat-log').innerHTML += 'GPT: ' + data.response + ' (' + new Date().toLocaleTimeString() + ')<br>';
+            document.querySelector('#chat-log').scrollTop = document.querySelector('#chat-log').scrollHeight;
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+            alert('Соединение с чатом закрыто. Обновите страницу для повторного подключения.');
+        };
+
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            document.querySelector('#chat-log').innerHTML += 'You: ' + message + ' (' + new Date().toLocaleTimeString() + ')<br>';
+            messageInputDom.value = '';
+            document.querySelector('#chat-log').scrollTop = document.querySelector('#chat-log').scrollHeight;
+            document.getElementById('cost-preview').textContent = 'Стоимость: 0 руб. (0 $)';
+        };
+
+        document.querySelector('#chat-message-input').oninput = function(e) {
+            const tokenRateRub = 0.007;
+            const tokenRateUsd = 0.0001;
+
+            const message = e.target.value;
+            const tokenCount = message.length / 4;
+
+            const costRub = (tokenCount * tokenRateRub).toFixed(2);
+            const costUsd = (tokenCount * tokenRateUsd).toFixed(4);
+
+            document.getElementById('cost-preview').textContent = `Стоимость: ${costRub} руб. (${costUsd} $)`;
+        };
+        {% endif %}
+    </script>
+{% endblock %}

@@ -1,0 +1,13 @@
+<!-- templates/sidebar/sidebar.html -->
+{% extends "base.html" %}
+
+{% block sidebar %}
+    <h4>Активные чаты</h4>
+    <ul class="list-group">
+        <li class="list-group-item">Чат 1 <button class="btn btn-danger btn-sm float-end">Удалить</button></li>
+        <li class="list-group-item">Чат 2 <button class="btn btn-danger btn-sm float-end">Удалить</button></li>
+        <li class="list-group-item">
+            <button class="btn btn-success btn-sm">Добавить новый чат</button>
+        </li>
+    </ul>
+{% endblock %}
