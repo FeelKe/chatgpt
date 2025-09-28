@@ -1,0 +1,1 @@
+print("Модуль templatetags загружен")

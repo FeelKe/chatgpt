@@ -3,99 +3,192 @@
 {% block title %}Chat{% endblock %}
 
 {% block sidebar %}
-    <h4>Активные чаты</h4>
-    <ul class="list-group">
-        {% for chat in chats %}
-            <li class="list-group-item {% if selected_chat and chat.id == selected_chat.id %}active{% endif %}">
-                <a href="{% url 'chat:index_with_chat' chat.id %}" class="text-decoration-none {% if selected_chat and chat.id == selected_chat.id %}text-light{% else %}text-dark{% endif %}">
-                    {{ chat.title }}
-                </a>
+<h4 class="mb-3"><i class="fas fa-comments"></i> Active Chats</h4>
+<ul class="list-group">
+    {% for chat in chats %}
+        <li class="list-group-item d-flex justify-content-between align-items-center {% if selected_chat and chat.id == selected_chat.id %}active{% endif %}">
+            <a href="{% url 'chat:index_with_chat' chat.id %}" class="text-decoration-none {% if selected_chat and chat.id == selected_chat.id %}text-light{% else %}text-dark{% endif %}">
+                <span class="chat-title"><i class="fas fa-comment-alt me-2"></i>{{ chat.title }}</span>
+            </a>
+            <div class="d-flex">
                 <form method="post" action="{% url 'chat:delete_chat' chat.id %}" style="display:inline;">
                     {% csrf_token %}
-                    <button class="btn btn-danger btn-sm float-end">Удалить</button>
+                    <button class="btn btn-danger btn-sm delete-btn" title="Delete Chat">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                 </form>
-            </li>
-        {% endfor %}
-        <li class="list-group-item">
-            <form method="post" action="{% url 'chat:create_chat' %}">
+                <button class="btn btn-secondary btn-sm ms-2 rename-toggle" title="Rename Chat">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+        </li>
+        <li class="list-group-item rename-form" style="display:none;">
+            <form method="post" action="{% url 'chat:rename_chat' chat.id %}">
                 {% csrf_token %}
-                <input type="text" class="form-control" name="title" placeholder="Название нового чата" required>
-                <button class="btn btn-success btn-sm text-light" style="background-color: #28a745;">Добавить новый чат</button>
+                <input type="text" class="form-control form-control-sm" name="title" placeholder="New Chat Name" required>
             </form>
         </li>
-    </ul>
+    {% endfor %}
+    <li class="list-group-item">
+        <form method="post" action="{% url 'chat:create_chat' %}">
+            {% csrf_token %}
+            <input type="text" class="form-control mb-2" name="title" placeholder="New Chat Name" required>
+            <button class="btn btn-success btn-sm text-light w-100 create-chat-btn">
+                <i class="fas fa-plus"></i> Create New Chat
+            </button>
+        </form>
+    </li>
+</ul>
+{% if user.is_authenticated %}
+    <hr>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger btn-sm mt-3 w-100 logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </form>
+{% else %}
+    <p class="mt-3">You are not logged in.</p>
+{% endif %}
 {% endblock %}
 
 {% block content %}
-    {% if selected_chat %}
-        <h4>Название чата: {{ selected_chat.title }}</h4>
-
-        <p>Текущая модель: <strong>{{ current_model }}</strong></p>
-        <p>Использовано токенов: <strong>{{ tokens_used }}</strong></p>
-        <p>Стоимость: <strong>{{ cost_in_rub }} руб. ({{ cost_in_usd }} $)</strong></p>
-
-        <form method="post" action="{% url 'chat:rename_chat' selected_chat.id %}">
-            {% csrf_token %}
-            <div class="input-group mb-3">
-                <input type="text" class="form-control" name="title" value="{{ selected_chat.title }}" placeholder="Новое название чата" required>
-                <button class="btn btn-primary" type="submit">Изменить название</button>
+{% if selected_chat %}
+<div class="max-w-3xl mx-auto w-full h-full d-flex flex-column">
+    <div id="chat-log" class="flex-grow-1 overflow-auto p-3" style="height: 500px;">
+        {% for message in messages %}
+             {% if message.role == 'user' %}
+                <div class="d-flex justify-content-end mb-2">
+            {% else %}
+                <div class="d-flex justify-content-start mb-2">
+            {% endif %}
+                <div class="p-3 message-container {% if message.role == 'user' %}user-message{% else %}bot-message{% endif %}">
+                    <div class="message-content">
+                        {{ message.content|safe|linebreaksbr }}
+                    </div>
+                    {% if message.image %}
+                        <img src="{{ message.image }}" class="img-fluid mt-2" alt="Image">
+                    {% endif %}
+                </div>
             </div>
-        </form>
+        {% endfor %}
+    </div>
 
-        <textarea id="chat-log" class="form-control" readonly style="height: 300px;">
-            {% for message in messages %}
-                {{ message.sender }}: {{ message.content }} ({{ message.created_at }})<br>
-            {% endfor %}
-        </textarea><br>
+    <div class="input-area p-3 border-top">
+        <div class="position-relative d-flex align-items-center">
+            <textarea id="chat-message-input" class="form-control rounded-pill pe-5 ps-4 py-2 bg-light" rows="1" placeholder="Напишите сообщение..." style="min-height: 44px; resize: none;"></textarea>
+            <button id="chat-message-submit" class="btn btn-primary position-absolute end-0 me-2">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
 
-        <input id="chat-message-input" type="text" class="form-control" placeholder="Введите сообщение..."><br>
-        <p id="cost-preview">Стоимость: 0 руб. (0 $)</p>
-        <button id="chat-message-submit" class="btn btn-primary">Отправить</button>
-    {% else %}
-        <p>Выберите чат из списка слева или создайте новый.</p>
-    {% endif %}
+<style>
+    .message-container {
+        max-width: 85%;
+        border-radius: 18px 4px 18px 18px;
+        word-wrap: break-word;
+        font-family: Arial, sans-serif;
+    }
+    .user-message {
+        background: rgba(0, 123, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 18px 4px 18px 18px;
+    }
+    .bot-message {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 4px 18px 18px 18px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .input-area {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(20px);
+    }
+</style>
 
-    <script>
-        {% if selected_chat %}
-        const chatSocket = new WebSocket(
-            'ws://' + window.location.host + '/ws/chat/{{ selected_chat.id }}/'
-        );
+<!-- Подключаем Prism.js для подсветки кода -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
 
-        chatSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            document.querySelector('#chat-log').innerHTML += 'GPT: ' + data.response + ' (' + new Date().toLocaleTimeString() + ')<br>';
-            document.querySelector('#chat-log').scrollTop = document.querySelector('#chat-log').scrollHeight;
-        };
+<script>
+    const input = document.querySelector('#chat-message-input');
+    const log = document.querySelector('#chat-log');
+    const submit = document.querySelector('#chat-message-submit');
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    console.log('WebSocket URL:', protocol + '://' + window.location.host + '/ws/chat/{{ selected_chat.id }}/');
+    console.log('Selected chat ID:', "{{ selected_chat.id }}");
+    const chatSocket = new WebSocket(protocol + '://' + window.location.host + '/ws/chat/{{ selected_chat.id }}/');
+    chatSocket.onerror = (error) => {
+        console.error('WebSocket connection error:', error);
+    };
+    function markdownCodeToHtml(text) {
+        return text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+            const languageClass = lang ? `language-${lang}` : 'language-none';
+            const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<pre><code class="${languageClass}">${escapedCode}</code></pre>`;
+        })
+        .replace(/\n/g, '<br>');
+    }
 
-        chatSocket.onclose = function(e) {
-            console.error('Chat socket closed unexpectedly');
-            alert('Соединение с чатом закрыто. Обновите страницу для повторного подключения.');
-        };
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = (input.scrollHeight > 44 ? input.scrollHeight : 44) + 'px';
+    });
 
-        document.querySelector('#chat-message-submit').onclick = function(e) {
-            const messageInputDom = document.querySelector('#chat-message-input');
-            const message = messageInputDom.value;
-            chatSocket.send(JSON.stringify({
-                'message': message
-            }));
-            document.querySelector('#chat-log').innerHTML += 'You: ' + message + ' (' + new Date().toLocaleTimeString() + ')<br>';
-            messageInputDom.value = '';
-            document.querySelector('#chat-log').scrollTop = document.querySelector('#chat-log').scrollHeight;
-            document.getElementById('cost-preview').textContent = 'Стоимость: 0 руб. (0 $)';
-        };
+    submit.onclick = (e) => {
+        e.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
 
-        document.querySelector('#chat-message-input').oninput = function(e) {
-            const tokenRateRub = 0.007;
-            const tokenRateUsd = 0.0001;
+        chatSocket.send(JSON.stringify({ 'message': message }));
 
-            const message = e.target.value;
-            const tokenCount = message.length / 4;
+        log.innerHTML += `
+            <div class="d-flex justify-content-end mb-2">
+                <div class="p-3 message-container user-message">
+                    <div class="message-content">${markdownCodeToHtml(message)}</div>
+                </div>
+            </div>`;
+        input.value = '';
+        input.style.height = '44px';
+        log.scrollTop = log.scrollHeight;
 
-            const costRub = (tokenCount * tokenRateRub).toFixed(2);
-            const costUsd = (tokenCount * tokenRateUsd).toFixed(4);
+        Prism.highlightAll();
+    };
 
-            document.getElementById('cost-preview').textContent = `Стоимость: ${costRub} руб. (${costUsd} $)`;
-        };
-        {% endif %}
-    </script>
+   chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+
+    if (data.type === 'ping') return;
+    if (data.response) {
+        const formattedContent = markdownCodeToHtml(data.response);
+
+        const html = `
+            <div class="d-flex justify-content-start mb-2">
+                <div class="p-3 message-container bot-message">
+                    <div class="message-content">${formattedContent}</div>
+                </div>
+            </div>
+        `;
+
+        log.insertAdjacentHTML('beforeend', html);
+        log.scrollTop = log.scrollHeight;
+        Prism.highlightAll();
+    }
+};
+
+    chatSocket.onclose = () => alert('Соединение прервано. Обновите страницу.');
+
+    input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submit.click();
+        }
+    });
+</script>
+{% else %}
+<p>Выберите чат слева или создайте новый.</p>
+{% endif %}
 {% endblock %}

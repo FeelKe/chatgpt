@@ -22,12 +22,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-$+2_#e5j6n93--4jg*4&8j+!zixiw*3jpeij^_014cmz=a!a@s'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
-# Application definition
+CSRF_TRUSTED_ORIGINS = [
+    'https://feelkkq.ru',
+    'https://www.feelkkq.ru',
+]
+
 
 INSTALLED_APPS = [
     'accounts',
@@ -46,6 +50,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,11 +96,11 @@ ASGI_APPLICATION = 'gpt_chat.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'gpt_chat',   # Имя базы данных
-        'USER': 'root',   # Пользователь базы данных
-        'PASSWORD': '1234',  # Пароль пользователя
-        'HOST': 'localhost',  # Или IP сервера базы данных
-        'PORT': '3306',  # Порт MySQL
+        'NAME': 'gpt_chat',
+        'USER': 'root',
+        'PASSWORD': '1234',
+        'HOST': '212.113.100.113',
+        'PORT': '3306',
     }
 }
 
@@ -143,9 +148,10 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATICFILES_DIRS = (os.path.join(BASE_DIR, "assets"),)
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
